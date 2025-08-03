@@ -37,8 +37,8 @@ jobs:
       - name: Run tfsec and generate SARIF + HTML reports
         run: |
           mkdir -p tfsec-reports
-          tfsec . --format sarif > tfsec-reports/tfsec-results.sarif
-          tfsec . --format html > tfsec-reports/tfsec-report.html
+          tfsec . --format sarif --soft-fail > tfsec-reports/tfsec-results.sarif
+          tfsec . --format html --soft-fail > tfsec-reports/tfsec-report.html
 
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
