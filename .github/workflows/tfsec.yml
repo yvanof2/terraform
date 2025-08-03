@@ -32,12 +32,13 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
       - name: Terraform Init
         run: terraform init
+        working-directory: ./terraform
 
       - name: Run tfsec and generate reports
         run: |
           mkdir -p tfsec-reports
-          tfsec . --format sarif > tfsec-reports/tfsec-results.sarif
-          tfsec . --format html > tfsec-reports/tfsec-report.html
+          tfsec ./terraform --format sarif > tfsec-reports/tfsec-results.sarif
+          tfsec ./terraform --format html > tfsec-reports/tfsec-report.html
 
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
