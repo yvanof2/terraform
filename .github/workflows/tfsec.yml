@@ -25,6 +25,11 @@ jobs:
       # Checkout the repository code
       - name: Checkout source code
         uses: actions/checkout@v4.1.0
+      - name: Terraform Init
+        run: terraform init
+      
+
+
 
       # Install tfsec and verify installation
       - name: Install tfsec
