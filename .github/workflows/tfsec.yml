@@ -1,0 +1,46 @@
+name: tfsec Terraform Security Scan
+
+on:
+  push:
+    paths:
+      - '**/*.tf'
+  pull_request:
+    paths:
+      - '**/*.tf'
+
+permissions:
+  security-events: write  # Required for uploading SARIF files
+  actions: read
+  contents: read
+
+jobs:
+  tfsec:
+    name: Run tfsec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+      - name: Run tfsec with SARIF and HTML reports
+        run: |
+          mkdir -p tfsec-reports
+          tfsec . \
+            --format sarif > tfsec-reports/tfsec-results.sarif
+          tfsec . \
+            --format html > tfsec-reports/tfsec-report.html
+
+      - name: Upload SARIF report to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec-reports/tfsec-results.sarif
+
+      - name: Upload HTML report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfsec-html-report
+          path: tfsec-reports/tfsec-report.html
