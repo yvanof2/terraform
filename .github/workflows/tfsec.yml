@@ -1,12 +1,7 @@
-name: tfsec Terraform Security Scan
+name: Auto Install Terraform and Run tfsec
 
 on:
-  push:
-    paths:
-      - '**/*.tf'
-  pull_request:
-    paths:
-      - '**/*.tf'
+  workflow_dispatch:  # Manual trigger in GitHub UI
 
 permissions:
   security-events: write
@@ -14,30 +9,36 @@ permissions:
 
 jobs:
   tfsec:
-    name: Run tfsec Security Checks
+    name: Scan Terraform with tfsec
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Terraform (optional, but good practice)
-        uses: hashicorp/setup-terraform@v3
+      - name: Automatically install Terraform
+        run: |
+          echo "Installing Terraform..."
+          TERRAFORM_VERSION="1.8.5"
+          curl -sSLo terraform.zip https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
+          unzip terraform.zip
+          sudo mv terraform /usr/local/bin/
+          terraform -version
 
-      - name: Initialize Terraform modules
+      - name: Run terraform init (without backend)
         run: terraform init -backend=false
 
       - name: Install tfsec
         run: |
+          echo "Installing tfsec..."
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
-      - name: Terraform Init
-        run: terraform init ./terraform
+          tfsec --version
 
-      - name: Run tfsec and generate reports
+      - name: Run tfsec and generate SARIF + HTML reports
         run: |
           mkdir -p tfsec-reports
-          tfsec ./terraform --format sarif > tfsec-reports/tfsec-results.sarif
-          tfsec ./terraform --format html > tfsec-reports/tfsec-report.html
+          tfsec . --format sarif > tfsec-reports/tfsec-results.sarif
+          tfsec . --format html > tfsec-reports/tfsec-report.html
 
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
