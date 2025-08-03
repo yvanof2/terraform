@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - '**/*.tf'
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2am UTC
 
 permissions:
   security-events: write  # Required for uploading SARIF reports
@@ -18,26 +20,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository code
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.0
 
+      # Install tfsec and verify installation
       - name: Install tfsec
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          tfsec --version
 
+      # Run tfsec and create SARIF/HTML reports (with verbose logging)
       - name: Run tfsec and generate reports
         run: |
           mkdir -p tfsec-reports
-          tfsec . --format sarif > tfsec-reports/tfsec-results.sarif
+          tfsec . --format sarif --verbose > tfsec-reports/tfsec-results.sarif
           tfsec . --format html > tfsec-reports/tfsec-report.html
 
+      # Upload SARIF results for GitHub Security tab
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v3.25.0
         with:
           sarif_file: tfsec-reports/tfsec-results.sarif
 
+      # Upload HTML report for download (kept for 7 days)
       - name: Upload HTML report as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: tfsec-html-report
           path: tfsec-reports/tfsec-report.html
+          retention-days: 7
