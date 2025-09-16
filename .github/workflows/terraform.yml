@@ -1,0 +1,71 @@
+name: Terraform CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: tfsec Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+
+      - name: Run tfsec
+        id: tfsec
+        run: |
+          mkdir -p reports
+          tfsec --format json --out reports/tfsec.json || true
+          tfsec --format sarif --out reports/tfsec.sarif || true
+          # Count CRITICAL findings
+          CRITICAL_COUNT=$(jq '[.results[] | select(.severity=="CRITICAL")] | length' reports/tfsec.json)
+          echo "Critical findings: $CRITICAL_COUNT"
+          echo "critical_count=$CRITICAL_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Upload tfsec SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/tfsec.sarif
+
+      - name: Fail if critical findings exist
+        if: steps.tfsec.outputs.critical_count != '0'
+        run: |
+          echo "❌ Critical findings detected. Deployment blocked."
+          exit 1
+
+  deploy:
+    name: Terraform Deploy
+    needs: security-scan
+    runs-on: ubuntu-latest
+    if: needs.security-scan.outputs.critical_count == '0'
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
