@@ -48,13 +48,13 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-# Subnet
 resource "aws_subnet" "default" {
   vpc_id                  = var.vpc_id
-  cidr_block              = "172.31.1.0/24"    # ✅ inside VPC CIDR
+  cidr_block              = "172.31.96.0/20"   # choose a range not in use
   availability_zone       = var.availability_zone
   map_public_ip_on_launch = true
 }
+
 
 
 # EC2 Instance
