@@ -1,20 +1,18 @@
-name: Terraform CI/CD
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:   # ✅ run checks on PRs (plan only, no apply)
-  workflow_dispatch:
-
 jobs:
   security-scan:
     name: tfsec Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # ✅ required for SARIF upload
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Install tfsec
+        run: |
+          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
       - name: Run tfsec
         id: tfsec
@@ -42,33 +40,3 @@ jobs:
         run: |
           echo "❌ Critical findings detected. Deployment blocked."
           exit 1
-
-  deploy:
-    name: Terraform Deploy
-    needs: security-scan
-    runs-on: ubuntu-latest
-    if: needs.security-scan.outputs.critical_count == '0' && github.ref == 'refs/heads/main'
-
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: us-east-1
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
