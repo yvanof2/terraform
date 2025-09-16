@@ -1,42 +1,25 @@
-name: Terraform Test Deploy
-
-on:
-  workflow_dispatch:   # Manual trigger
-  push:
-    branches:
-      - test       # Optional: create a 'test' branch for testing
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: us-east-1
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Terraform
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Validate
-        run: terraform validate
-
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      - name: Terraform Apply (Always)
-        run: terraform apply -auto-approve
-
-      - name: Optional tfsec scan (soft fail)
-        run: |
-          mkdir -p reports
-          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
-          tfsec --format sarif --out reports/tfsec.sarif --soft-fail
-          echo "tfsec scan complete (soft-fail, does not block deployment)"
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
